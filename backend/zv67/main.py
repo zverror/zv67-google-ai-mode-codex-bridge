@@ -28,6 +28,8 @@ from zv67.sessions.manager import SessionManager
 from zv67.statistics.collector import RequestStatistics
 from zv67.upstream.base import UpstreamProvider
 from zv67.upstream.mock import MockProvider
+from zv67.upstream.composite import CompositeProvider
+from zv67.upstream.google import GoogleAIModeProvider
 
 
 def create_app(
@@ -65,6 +67,7 @@ def create_app(
             default_ttl=timedelta(hours=resolved_settings.session_ttl_hours),
         )
         app.state.stats = RequestStatistics(resolved_database)
+        app.state.stats.mark_stale_started()
         app.state.router = AccountRouter()
         app.state.settings_store = SettingsStore(resolved_database)
         app.state.audit = AuditLog(resolved_database)
@@ -75,10 +78,22 @@ def create_app(
         app.state.routing_strategy = app.state.settings_store.get(
             "routing_strategy", resolved_settings.routing_strategy
         )
+        if resolved_settings.google_ai_mode_enabled:
+            def load_credentials(account_id: str) -> dict:
+                with resolved_database.session() as db_session:
+                    return credentials.load(db_session, account_id) or {}
+
+            google = GoogleAIModeProvider(
+                load_credentials,
+                max_sessions=resolved_settings.google_browser_max_sessions,
+                timeout=resolved_settings.google_browser_timeout_seconds,
+                headless=resolved_settings.google_browser_headless,
+            )
+            app.state.provider = CompositeProvider([resolved_provider, google])
         try:
             yield
         finally:
-            await resolved_provider.aclose()
+            await app.state.provider.aclose()
             resolved_database.close()
 
     app = FastAPI(

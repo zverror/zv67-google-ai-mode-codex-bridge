@@ -103,14 +103,14 @@ def _validate(payload: ChatCompletionRequest, provider_models: set[str], setting
             code="model_not_found",
             param="model",
         )
-    if payload.tools:
+    if payload.tools and payload.model != "google-ai-mode":
         raise ApiError(
             400,
             "tool calling is not implemented for this model",
             code="unsupported_feature",
             param="tools",
         )
-    if payload.tool_choice is not None:
+    if payload.tool_choice is not None and payload.model != "google-ai-mode":
         raise ApiError(
             400,
             "tool choice is not implemented for this model",
@@ -156,7 +156,11 @@ async def chat_completions(
     stats.start(
         request_id=request_id,
         model_id=payload.model,
-        backend=provider.provider_id,
+        backend=(
+            provider.backend_for(payload.model)
+            if hasattr(provider, "backend_for")
+            else provider.provider_id
+        ),
     )
     lease: AccountLease | None = None
     try:
@@ -184,6 +188,8 @@ async def chat_completions(
                 code="unsupported_content",
                 param="messages",
             ) from exc
+        if lease is not None:
+            normalized = normalized.model_copy(update={"account_id": lease.account_id})
     except ApiError as exc:
         stats.finish(
             request_id,

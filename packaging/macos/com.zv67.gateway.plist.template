@@ -23,6 +23,8 @@
     <string>__DATA_DIR__</string>
     <key>ZV67_MASTER_KEY_STORE</key>
     <string>file</string>
+    <key>ZV67_GOOGLE_AI_MODE_ENABLED</key>
+    <string>true</string>
   </dict>
   <key>RunAtLoad</key>
   <true/>

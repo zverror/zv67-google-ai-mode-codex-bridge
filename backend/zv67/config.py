@@ -35,6 +35,10 @@ class Settings(BaseModel):
     ] = "round_robin"
     session_ttl_hours: int = Field(default=168, ge=1, le=24 * 365)
     stream_chunk_chars: int = Field(default=32, ge=1, le=4096)
+    google_ai_mode_enabled: bool = False
+    google_browser_max_sessions: int = Field(default=2, ge=1, le=8)
+    google_browser_timeout_seconds: int = Field(default=60, ge=15, le=300)
+    google_browser_headless: bool = True
 
     @field_validator("host")
     @classmethod

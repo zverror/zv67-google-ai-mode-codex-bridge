@@ -363,5 +363,6 @@ def normalize_response_request(
         ),
         stream=request.stream,
         account_id=request.account_id,
+        tools=tuple(request.tools or ()),
     )
 

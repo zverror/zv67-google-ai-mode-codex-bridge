@@ -53,7 +53,11 @@ async def create_response(
     stats.start(
         request_id=request_id,
         model_id=payload.model,
-        backend=provider.provider_id,
+        backend=(
+            provider.backend_for(payload.model)
+            if hasattr(provider, "backend_for")
+            else provider.provider_id
+        ),
     )
     lease = None
     try:
@@ -65,7 +69,7 @@ async def create_response(
                 code="model_not_found",
                 param="model",
             )
-        if payload.tools:
+        if payload.tools and payload.model != "google-ai-mode":
             raise ApiError(
                 400,
                 "tool calling is not implemented for this model",
@@ -108,6 +112,8 @@ async def create_response(
                 code="unsupported_content",
                 param="input",
             ) from exc
+        if lease is not None:
+            normalized = normalized.model_copy(update={"account_id": lease.account_id})
     except ApiError as exc:
         stats.finish(
             request_id,

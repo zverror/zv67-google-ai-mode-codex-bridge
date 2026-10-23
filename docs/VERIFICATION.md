@@ -70,13 +70,22 @@ cd backend
 
 ## Google AI Mode
 
-LIVE: **NOT TESTED**.  
-Реальный аккаунт не использовался. Adapter: **UNSUPPORTED** по причинам из `docs/FEASIBILITY.md`.
+LIVE: **PASS** на двух аккаунтах, 24 октября 2026.
+
+| Проверка | Результат |
+|---|---|
+| Импорт JSON Cookie-Editor | PASS: 22 cookie |
+| Импорт Netscape | PASS: 22 cookie |
+| Первый ответ AI Mode | PASS: «Париж» |
+| Второй аккаунт | PASS: «Стокгольм» |
+| Многошаговый диалог | PASS: после Франции ответ про Берлин |
+| Headless Chrome CDP | PASS: окно не открывается, `SG_REL` отсутствует |
+| Codex CLI | PASS: `codex exec -m zv67/google-ai-mode` вернул ответ |
+| Tool calling | UNSUPPORTED |
+| Codex Desktop UI | NOT TESTED |
 
 ## Что не доказано
 
-- ответы Google AI Mode;
-- сохранение контекста на стороне Google;
 - выбор модели в Codex Desktop;
 - агентский цикл Codex через Google AI Mode;
 - tool calling.

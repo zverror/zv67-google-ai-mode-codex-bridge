@@ -121,6 +121,21 @@ class RequestStatistics:
             record.session_id = session_id
             record.account_id = account_id
 
+    def mark_stale_started(self, *, error_code: str = "service_restarted") -> int:
+        """Close requests left in STARTED after a process restart."""
+
+        with self._database.session() as session:
+            rows = session.scalars(
+                select(RequestRecord).where(RequestRecord.status == "STARTED")
+            ).all()
+            now = datetime.now(timezone.utc)
+            for row in rows:
+                row.status = "ERROR"
+                row.http_status = 499
+                row.error_code = error_code
+                row.completed_at = now
+            return len(rows)
+
     def add_event(self, request_id: str, kind: str, detail: str | None = None) -> None:
         safe_detail = detail[:1000] if detail else None
         with self._database.session() as session:
