@@ -29,6 +29,11 @@ from zv67.management.auth import (
     AdminAuthError,
     AdminClaims,
 )
+from zv67.security.cookie_import import (
+    CredentialParseError,
+    normalize_credentials,
+    parse_credentials_text,
+)
 from zv67.routing.router import RoutingStrategy
 
 router = APIRouter(prefix="/admin/api")
@@ -59,7 +64,8 @@ class AccountPatchBody(BaseModel):
 
 
 class CredentialsBody(BaseModel):
-    credentials: dict
+    credentials: dict | list | None = None
+    credentials_text: str | None = None
 
 
 class SettingsBody(BaseModel):
@@ -311,8 +317,17 @@ async def set_credentials(
         raise ApiError(404, "account not found", code="not_found")
     credentials = request.app.state.credentials
     database = get_database(request)
+    try:
+        if body.credentials_text is not None:
+            payload = parse_credentials_text(body.credentials_text)
+        elif body.credentials is not None:
+            payload = normalize_credentials(body.credentials)
+        else:
+            raise CredentialParseError("credentials payload is empty")
+    except CredentialParseError as exc:
+        raise ApiError(400, str(exc), code="invalid_credentials") from exc
     with database.session() as session:
-        metadata = credentials.store(session, account_id, body.credentials)
+        metadata = credentials.store(session, account_id, payload)
     request.app.state.audit.record("credentials.updated", target=account_id)
     return {
         "ok": True,

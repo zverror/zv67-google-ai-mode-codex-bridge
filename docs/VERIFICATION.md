@@ -13,7 +13,7 @@ cd backend
 .venv/bin/python -m pytest tests -q
 ```
 
-Результат: **59 passed**, одно предупреждение Starlette о `httpx`/`httpx2`.
+Результат: **65 passed**, одно предупреждение Starlette о `httpx`/`httpx2`.
 
 Покрыто:
 
@@ -27,6 +27,7 @@ cd backend
 - API keys, scrypt-пароль, CSRF и rate limit;
 - аккаунты, sticky sessions, concurrency и cooldown;
 - статистика и журнал запросов.
+- импорт cookies в форматах Cookie-Editor JSON, Netscape и `name=value`.
 
 ## Ручные проверки
 

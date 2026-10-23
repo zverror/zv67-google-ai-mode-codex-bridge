@@ -92,11 +92,35 @@ def test_account_crud_and_credentials_are_never_returned(client):
 
     stored = client.put(
         f"/admin/api/accounts/{account_id}/credentials",
-        json={"credentials": {"cookies": [{"name": "SID", "value": "secret-value"}]}},
+        json={
+            "credentials_text": (
+                '[{"domain": ".google.com", "name": "SID", "value": "secret-value"}]'
+            )
+        },
         headers=headers,
     )
     assert stored.status_code == 200
     assert "secret-value" not in stored.text
+
+    netscape = client.put(
+        f"/admin/api/accounts/{account_id}/credentials",
+        json={
+            "credentials_text": (
+                "#HttpOnly_.google.com\tTRUE\t/\tTRUE\t1824327060\t__Secure-1PSID\tvalue-2"
+            )
+        },
+        headers=headers,
+    )
+    assert netscape.status_code == 200
+    assert "value-2" not in netscape.text
+
+    invalid = client.put(
+        f"/admin/api/accounts/{account_id}/credentials",
+        json={"credentials_text": "not a cookie format"},
+        headers=headers,
+    )
+    assert invalid.status_code == 400
+    assert invalid.json()["error"]["code"] == "invalid_credentials"
 
     patched = client.patch(
         f"/admin/api/accounts/{account_id}",

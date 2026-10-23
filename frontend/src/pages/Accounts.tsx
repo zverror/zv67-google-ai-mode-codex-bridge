@@ -84,10 +84,10 @@ export default function Accounts() {
   });
 
   const credentials = useMutation({
-    mutationFn: (payload: { account: Account; body: unknown }) =>
+    mutationFn: (payload: { account: Account; body: string }) =>
       api(`/accounts/${payload.account.id}/credentials`, {
         method: "PUT",
-        body: JSON.stringify({ credentials: payload.body }),
+        body: JSON.stringify({ credentials_text: payload.body }),
       }),
     onSuccess: async () => {
       setCredentialAccount(null);
@@ -107,12 +107,11 @@ export default function Accounts() {
   function saveCredentials() {
     if (!credentialAccount) return;
     setCredentialError("");
-    try {
-      const parsed = JSON.parse(credentialText || "{}");
-      credentials.mutate({ account: credentialAccount, body: parsed });
-    } catch {
-      setCredentialError("Введите корректный JSON");
+    if (!credentialText.trim()) {
+      setCredentialError("Вставьте cookies");
+      return;
     }
+    credentials.mutate({ account: credentialAccount, body: credentialText });
   }
 
   function confirmRemove(account: Account) {
@@ -276,15 +275,15 @@ export default function Accounts() {
             <Card>
               <h2 className="mb-1 text-sm font-semibold">Credentials: {credentialAccount.display_name}</h2>
               <p className="mb-3 text-xs" style={{ color: "var(--muted)" }}>
-                JSON шифруется ключом из macOS Keychain. Не вводите пароль Google и не вставляйте
-                cookies в логи или Git.
+                Поддерживается JSON из Cookie-Editor, файл Netscape и строка name=value; name2=value2.
+                Данные шифруются мастер-ключом. Не вставляйте cookies в логи или Git.
               </p>
               <textarea
                 className={`${inputClass} h-40 font-mono text-xs`}
                 style={inputStyle()}
                 value={credentialText}
                 onChange={(event) => setCredentialText(event.target.value)}
-                placeholder='{"cookies":[{"name":"__Secure-1PSID","value":"..."}]}'
+                placeholder='[{"name":"__Secure-1PSID","value":"..."}] или .google.com  TRUE  /  TRUE  1824327060  __Secure-1PSID  ...'
               />
               {credentialError ? (
                 <div className="mt-2 text-xs" style={{ color: "var(--bad)" }}>
