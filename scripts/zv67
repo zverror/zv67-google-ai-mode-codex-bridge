@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+label="com.zv67.gateway"
+uid_value="$(id -u)"
+plist="$HOME/Library/LaunchAgents/$label.plist"
+data_dir="${ZV67_DATA_DIR:-$HOME/Library/Application Support/ZV67}"
+port="${ZV67_PORT:-18080}"
+
+case "${1:-status}" in
+  start)
+    launchctl bootstrap "gui/$uid_value" "$plist"
+    launchctl kickstart -k "gui/$uid_value/$label"
+    ;;
+  stop)
+    launchctl bootout "gui/$uid_value/$label"
+    ;;
+  restart)
+    launchctl kickstart -k "gui/$uid_value/$label"
+    ;;
+  status)
+    if launchctl print "gui/$uid_value/$label" >/dev/null 2>&1; then
+      echo "launchd: loaded"
+    else
+      echo "launchd: not loaded"
+    fi
+    curl -fsS "http://127.0.0.1:$port/health" || echo "health: unavailable"
+    echo
+    ;;
+  logs)
+    tail -n 100 "$data_dir/logs/zv67.out.log" "$data_dir/logs/zv67.err.log" 2>/dev/null || true
+    ;;
+  doctor)
+    root="$(cd "$(dirname "$0")/.." && pwd)"
+    failures=0
+    [[ -x "$root/backend/.venv/bin/python" ]] && echo "venv: ok" || { echo "venv: missing"; failures=1; }
+    [[ -f "$root/frontend/dist/index.html" ]] && echo "frontend: built" || { echo "frontend: missing"; failures=1; }
+    [[ -f "$plist" ]] && echo "launchd plist: ok" || { echo "launchd plist: missing"; failures=1; }
+    [[ -d "$data_dir" ]] && echo "data dir: ok" || { echo "data dir: missing"; failures=1; }
+    if curl -fsS "http://127.0.0.1:$port/health" >/dev/null 2>&1; then
+      echo "health: ok"
+    else
+      echo "health: failed"
+      failures=1
+    fi
+    if curl -fsS "http://127.0.0.1:$port/admin/" >/dev/null 2>&1; then
+      echo "dashboard: ok"
+    else
+      echo "dashboard: failed"
+      failures=1
+    fi
+    exit "$failures"
+    ;;
+  *)
+    echo "usage: zv67 {start|stop|restart|status|logs|doctor}" >&2
+    exit 2
+    ;;
+esac
+
