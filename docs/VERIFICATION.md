@@ -84,6 +84,26 @@ LIVE: **PASS** на двух аккаунтах, 24 октября 2026.
 | Tool calling | UNSUPPORTED |
 | Codex Desktop UI | NOT TESTED |
 
+### Выбор внутренней модели Google
+
+В HTML Google найден параметр выбора:
+
+| Пункт меню | Параметр |
+|---|---|
+| Auto / Быстрая | без `arv` |
+| 3.8 Flash | `arv=2` |
+| 4 Argon | `arv=3` |
+
+Проверка на двух аккаунтах: Google принимает параметр, но возвращает «Вы достигли дневного ограничения для этой модели. Переключитесь на модель Быстро». ZV67 преобразует этот ответ в HTTP 429 `rate_limited`.
+
+Модели зарегистрированы в Codex:
+
+```text
+zv67/google-ai-mode
+zv67/google-ai-mode-3.8-flash
+zv67/google-ai-mode-4-argon
+```
+
 ## Что не доказано
 
 - выбор модели в Codex Desktop;

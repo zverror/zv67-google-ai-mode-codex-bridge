@@ -21,10 +21,12 @@
 - два Google-аккаунта с разными cookies;
 - многошаговый диалог с сохранением контекста;
 - выбор модели `zv67/google-ai-mode` и запросы из Codex CLI.
+- отдельные модели 3.8 Flash и 4 Argon через параметр Google `arv`.
 
 Что не работает:
 
 - tool calling в ZV67: **UNSUPPORTED**. Codex получает текстовые ответы, но не может выполнять инструменты через Google AI Mode;
+- 3.8 Flash и 4 Argon: выбор передаётся, но оба тестовых аккаунта упираются в дневной лимит Google на эти модели;
 - выбор модели в нативном интерфейсе Codex Desktop: **NOT TESTED**. Приложение Codex Desktop недоступно для автоматизированной проверки интерфейса.
 
 Модель `zv67-mock` не выдаётся за Google AI Mode. Модель `google-ai-mode` работает через неофициальный протокол Google и может перестать работать при изменении защиты.
@@ -116,7 +118,7 @@ Vite проксирует `/admin/api` на порт 18080.
 provider: zv67
 adapter:  openai-chat
 baseUrl:  http://127.0.0.1:18080/v1
-models:   zv67-mock, google-ai-mode
+models:   zv67-mock, google-ai-mode, google-ai-mode-3.8-flash, google-ai-mode-4-argon
 ```
 
 Проверка:

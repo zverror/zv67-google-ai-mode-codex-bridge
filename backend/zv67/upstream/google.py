@@ -35,6 +35,11 @@ from zv67.upstream.base import (
 )
 
 GOOGLE_MODEL_ID = "google-ai-mode"
+GOOGLE_MODEL_ARV: dict[str, str | None] = {
+    "google-ai-mode": None,
+    "google-ai-mode-3.8-flash": "2",
+    "google-ai-mode-4-argon": "3",
+}
 HOST = "https://www.google.com"
 CHROME_CANDIDATES = (
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
@@ -156,6 +161,20 @@ _SKIP_EXACT = {
     "WhatsApp",
     "X",
 }
+
+_QUOTA_MARKERS = (
+    "daily limit for this model",
+    "switch to the auto model",
+    "дневного ограничения для этой модели",
+    "дневное ограничение для этой модели",
+    "достигли дневного ограничения",
+    "переключитесь на модель",
+)
+
+
+def _is_quota_message(text: str) -> bool:
+    lowered = text.lower()
+    return any(marker in lowered for marker in _QUOTA_MARKERS)
 
 
 def _clean_text(fragment: str) -> str:
@@ -288,22 +307,24 @@ class GoogleBrowserSession:
             ProviderErrorKind.UNAVAILABLE, "Chrome did not start its CDP endpoint"
         )
 
-    async def chat(self, query: str, state: ThreadState | None) -> tuple[str, ThreadState]:
+    async def chat(
+        self, query: str, state: ThreadState | None, arv: str | None = None
+    ) -> tuple[str, ThreadState]:
         await self.start()
         if state and state.mstk:
             try:
-                fragment = await self._folif(query, state, followup=True)
+                fragment = await self._folif(query, state, followup=True, arv=arv)
                 text, new_state = self._parse_fragment(fragment, state)
                 if text:
                     return text, new_state
             except Exception:
                 pass
-        await self._search_page(query)
+        await self._search_page(query, arv=arv)
         document = await self._page.content()
         state0 = _state_from(document)
         if not (state0.xsrf and state0.stkp and state0.elrc and state0.ei):
             raise self._classify_page(document, self._page.url)
-        fragment = await self._folif(query, state0, followup=False)
+        fragment = await self._folif(query, state0, followup=False, arv=arv)
         text, new_state = self._parse_fragment(fragment, state0)
         if not text:
             raise ProviderError(
@@ -311,9 +332,12 @@ class GoogleBrowserSession:
             )
         return text, new_state
 
-    async def _search_page(self, query: str) -> None:
+    async def _search_page(self, query: str, arv: str | None = None) -> None:
         assert self._page is not None
-        url = HOST + "/search?" + urlencode({"q": query, "udm": "50", "hl": "ru"})
+        params = {"q": query, "udm": "50", "hl": "ru"}
+        if arv:
+            params["arv"] = arv
+        url = HOST + "/search?" + urlencode(params)
         response = await self._page.goto(
             url, wait_until="domcontentloaded", timeout=self._timeout * 1000
         )
@@ -325,7 +349,14 @@ class GoogleBrowserSession:
             )
         await asyncio.sleep(0.4)
 
-    async def _folif(self, query: str, state: ThreadState, *, followup: bool) -> str:
+    async def _folif(
+        self,
+        query: str,
+        state: ThreadState,
+        *,
+        followup: bool,
+        arv: str | None = None,
+    ) -> str:
         assert self._page is not None
         params = (
             f"ei={quote(state.ei or '')}&yv=3&udm=50&hl=ru"
@@ -334,6 +365,8 @@ class GoogleBrowserSession:
         )
         if followup and state.mstk:
             params += f"&mstk={quote(state.mstk)}&csui=3"
+        if arv:
+            params += f"&arv={quote(arv)}"
         params += f"&async=_fmt:adl,_xsrf:{quote(state.xsrf or '')}"
         url = HOST + "/async/folif?" + params
         result = await self._page.evaluate(
@@ -352,7 +385,13 @@ class GoogleBrowserSession:
                 ProviderErrorKind.UNAVAILABLE,
                 f"AI Mode returned HTTP {result['status']}",
             )
-        return str(result["text"])
+        text = str(result["text"])
+        if _is_quota_message(text):
+            raise ProviderError(
+                ProviderErrorKind.RATE_LIMITED,
+                "Google AI Mode: daily limit for this model; use google-ai-mode (Auto)",
+            )
+        return text
 
     @staticmethod
     def _parse_fragment(
@@ -428,7 +467,7 @@ class GoogleAIModeProvider(UpstreamProvider):
         self._headless = headless
         self._sessions: OrderedDict[str, GoogleBrowserSession] = OrderedDict()
         self._locks: dict[str, asyncio.Lock] = {}
-        self._threads: OrderedDict[tuple[str, str], ThreadState] = OrderedDict()
+        self._threads: OrderedDict[tuple[str, str, str], ThreadState] = OrderedDict()
         self._models = models or [
             ModelDescriptor(
                 id=GOOGLE_MODEL_ID,
@@ -443,7 +482,35 @@ class GoogleAIModeProvider(UpstreamProvider):
                     "session_persistence": CapabilityStatus.VERIFIED,
                     "images": CapabilityStatus.UNSUPPORTED,
                 },
-            )
+            ),
+            ModelDescriptor(
+                id="google-ai-mode-3.8-flash",
+                display_name="Google AI Mode — 3.8 Flash",
+                provider="ZV67",
+                upstream="google",
+                capabilities={
+                    "chat": CapabilityStatus.NOT_TESTED,
+                    "streaming": CapabilityStatus.NOT_TESTED,
+                    "responses": CapabilityStatus.NOT_TESTED,
+                    "tool_calling": CapabilityStatus.UNSUPPORTED,
+                    "session_persistence": CapabilityStatus.NOT_TESTED,
+                    "images": CapabilityStatus.UNSUPPORTED,
+                },
+            ),
+            ModelDescriptor(
+                id="google-ai-mode-4-argon",
+                display_name="Google AI Mode — 4 Argon",
+                provider="ZV67",
+                upstream="google",
+                capabilities={
+                    "chat": CapabilityStatus.NOT_TESTED,
+                    "streaming": CapabilityStatus.NOT_TESTED,
+                    "responses": CapabilityStatus.NOT_TESTED,
+                    "tool_calling": CapabilityStatus.UNSUPPORTED,
+                    "session_persistence": CapabilityStatus.NOT_TESTED,
+                    "images": CapabilityStatus.UNSUPPORTED,
+                },
+            ),
         ]
 
     async def health(self) -> ProviderHealth:
@@ -457,11 +524,12 @@ class GoogleAIModeProvider(UpstreamProvider):
         return list(self._models)
 
     async def complete(self, request: NormalizedRequest) -> UpstreamResult:
-        if request.model_id != GOOGLE_MODEL_ID:
+        if request.model_id not in GOOGLE_MODEL_ARV:
             raise ProviderError(
                 ProviderErrorKind.INVALID_REQUEST,
                 f"model '{request.model_id}' is not served by Google AI Mode",
             )
+        arv = GOOGLE_MODEL_ARV[request.model_id]
         if not request.account_id:
             raise ProviderError(
                 ProviderErrorKind.INVALID_REQUEST,
@@ -475,14 +543,18 @@ class GoogleAIModeProvider(UpstreamProvider):
         account_id = request.account_id
         lock = self._locks.setdefault(account_id, asyncio.Lock())
         async with lock:
-            thread_key = (account_id, request.session_id or request.request_id)
+            thread_key = (
+                account_id,
+                request.model_id,
+                request.session_id or request.request_id,
+            )
             state = self._threads.get(thread_key)
             last_error: Exception | None = None
             for attempt in range(2):
                 session = await self._session(account_id)
                 try:
                     text, new_state = await asyncio.wait_for(
-                        session.chat(query, state),
+                        session.chat(query, state, arv=arv),
                         timeout=self._timeout + 20,
                     )
                 except asyncio.TimeoutError as exc:

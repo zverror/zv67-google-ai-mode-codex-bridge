@@ -108,7 +108,7 @@ async def wait_for_cdp(port: int, timeout: float = 20.0) -> None:
     raise RuntimeError("Chrome CDP endpoint did not start")
 
 
-async def run(account: str, query: str, headed: bool = False) -> None:
+async def run(account: str, query: str, headed: bool = False, arv: str | None = None) -> None:
     cookies = load_cookies(account)
     port = free_port()
     profile = Path(tempfile.mkdtemp(prefix="zv67-chrome-"))
@@ -144,9 +144,10 @@ async def run(account: str, query: str, headed: bool = False) -> None:
             page = await context.new_page()
             await page.goto(HOST + "/", wait_until="domcontentloaded", timeout=45000)
             await asyncio.sleep(1.5)
-            search_url = HOST + "/search?" + urlencode(
-                {"q": query, "udm": "50", "hl": "en"}
-            )
+            search_params = {"q": query, "udm": "50", "hl": "en"}
+            if arv:
+                search_params["arv"] = arv
+            search_url = HOST + "/search?" + urlencode(search_params)
             response = await page.goto(
                 search_url, wait_until="domcontentloaded", timeout=45000
             )
@@ -178,8 +179,10 @@ async def run(account: str, query: str, headed: bool = False) -> None:
             params = (
                 f"ei={quote(ei)}&yv=3&udm=50&hl=en&stkp={quote(stkp)}"
                 f"&cs=0&csuir=0&elrc={quote(elrc)}&q={quote(query)}"
-                f"&async=_fmt:adl,_xsrf:{quote(xsrf)}"
             )
+            if arv:
+                params += f"&arv={quote(arv)}"
+            params += f"&async=_fmt:adl,_xsrf:{quote(xsrf)}"
             folif_url = HOST + "/async/folif?" + params
             result = await page.evaluate(
                 """async (url) => {
@@ -204,6 +207,9 @@ async def run(account: str, query: str, headed: bool = False) -> None:
                         "mstk": bool(attr(fragment, "mstk")),
                         "thread_id": bool(attr(fragment, "session-thread-id")),
                         "text_len": len(text),
+                        "arv": arv,
+                        "flash_marker": "3.8 Flash" in fragment,
+                        "argon_marker": "Argon" in fragment,
                     },
                     ensure_ascii=False,
                 )
@@ -225,6 +231,7 @@ if __name__ == "__main__":
     parser.add_argument("--account", default="AI")
     parser.add_argument("--query", default="Что такое искусственный интеллект?")
     parser.add_argument("--headed", action="store_true")
+    parser.add_argument("--arv", choices=["2", "3"], default=None)
     args = parser.parse_args()
-    asyncio.run(run(args.account, args.query, headed=args.headed))
+    asyncio.run(run(args.account, args.query, headed=args.headed, arv=args.arv))
 
