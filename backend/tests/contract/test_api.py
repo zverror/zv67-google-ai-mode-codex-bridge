@@ -101,7 +101,7 @@ def test_multiple_choices_return_explicit_unsupported_error(client):
     assert error["param"] == "n"
 
 
-def test_tools_return_explicit_unsupported_error(client):
+def test_tools_are_accepted_but_not_executed(client):
     response = client.post(
         "/v1/chat/completions",
         json=chat_payload(
@@ -114,8 +114,8 @@ def test_tools_return_explicit_unsupported_error(client):
         ),
     )
 
-    assert response.status_code == 400
-    assert response.json()["error"]["param"] == "tools"
+    assert response.status_code == 200
+    assert "Mock response" in response.json()["choices"][0]["message"]["content"]
 
 
 def test_image_content_returns_unsupported_content(client):

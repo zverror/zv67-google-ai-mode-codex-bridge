@@ -13,7 +13,7 @@ cd backend
 .venv/bin/python -m pytest tests -q
 ```
 
-Результат: **65 passed**, одно предупреждение Starlette о `httpx`/`httpx2`.
+Результат: **68 passed**, одно предупреждение Starlette о `httpx`/`httpx2`.
 
 Покрыто:
 
@@ -83,6 +83,9 @@ LIVE: **PASS** на двух аккаунтах, 24 октября 2026.
 | Codex CLI | PASS: `codex exec -m zv67/google-ai-mode` вернул ответ |
 | Tool calling | UNSUPPORTED |
 | Codex Desktop UI | NOT TESTED |
+| zv67-mock из Codex CLI | PASS: ответ без ошибки tool calling |
+
+Codex передаёт `tools` в запросе; ZV67 принимает определения и не исполняет их. Это устраняет ошибку 400, но не включает агентские инструменты.
 
 ### Выбор внутренней модели Google
 
@@ -103,6 +106,8 @@ zv67/google-ai-mode
 zv67/google-ai-mode-3.8-flash
 zv67/google-ai-mode-4-argon
 ```
+
+Все четыре модели, включая `zv67-mock`, присутствуют в `~/.codex/opencodex-catalog.json` с `visibility=list`.
 
 ## Что не доказано
 

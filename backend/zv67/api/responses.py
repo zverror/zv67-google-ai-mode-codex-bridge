@@ -69,13 +69,6 @@ async def create_response(
                 code="model_not_found",
                 param="model",
             )
-        if payload.tools and not payload.model.startswith("google-ai-mode"):
-            raise ApiError(
-                400,
-                "tool calling is not implemented for this model",
-                code="unsupported_feature",
-                param="tools",
-            )
         if payload.previous_response_id is not None:
             raise ApiError(
                 400,

@@ -127,8 +127,8 @@ def test_responses_rejects_unsupported_features(client):
             "tools": [{"type": "function", "name": "read_file"}],
         },
     )
-    assert tools.status_code == 400
-    assert tools.json()["error"]["param"] == "tools"
+    assert tools.status_code == 200
+    assert tools.json()["output"][0]["type"] == "message"
 
     previous = client.post(
         "/v1/responses",
