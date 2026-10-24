@@ -1,206 +1,159 @@
-# ZV67 — Google AI Mode Agent Gateway
+# ZV67 · Google AI Mode Gateway
 
-Локальный шлюз с OpenAI-совместимым API, мультиаккаунтным управлением, сессиями, статистикой и веб-панелью. Проект создан как основа для подключения Google AI Mode к Codex через OpenCodeX.
+Локальный шлюз для Google AI Mode с OpenAI-совместимым API. Запускается на Mac, принимает запросы от Codex через OpenCodeX и управляет несколькими Google-аккаунтами из веб-панели. Chrome работает в headless-режиме: окна браузера при запросах не открываются.
 
-## Текущее состояние
+[Установка и диагностика](docs/INSTALL.md) · [Презентация PDF](output/pdf/zv67-project.pdf) · [Архитектура](ARCHITECTURE.md) · [Проверки](docs/VERIFICATION.md)
 
-Что работает и проверено:
+![Панель ZV67 на демонстрационных данных](docs/screenshots/overview.png)
 
-- FastAPI-сервер на `127.0.0.1:18080`;
-- Chat Completions, включая SSE streaming;
-- Responses API с событиями streaming;
-- детерминированный mock-провайдер `zv67-mock`;
-- SQLite с миграциями Alembic;
-- управление аккаунтами, лимитами параллельности и весами;
-- стратегии round-robin, weighted round-robin, least-busy, manual и sticky-сессии;
-- шифрование credentials и истории диалогов;
-- административная панель с авторизацией, CSRF и аудитом;
-- статистика запросов, ошибок и задержек;
-- регистрация провайдера `zv67` в установленном OpenCodeX.
-- реальный Google AI Mode через headless Chrome CDP;
-- два Google-аккаунта с разными cookies;
-- многошаговый диалог с сохранением контекста;
-- выбор модели `zv67/google-ai-mode` и запросы из Codex CLI.
-- отдельные модели 3.8 Flash и 4 Argon через параметр Google `arv`.
+## Возможности
 
-Что не работает:
+- Chat Completions и Responses API, включая SSE streaming.
+- Модели Auto, 3.8 Flash и 4 Argon; локальная тестовая модель `zv67-mock`.
+- Несколько аккаунтов, веса, лимиты параллельности и привязка диалога к аккаунту.
+- Импорт cookies из Cookie-Editor JSON, Netscape и строки `name=value`.
+- История диалогов, статистика, журнал запросов и административная панель.
 
-- tool calling в ZV67: **UNSUPPORTED**. Codex получает текстовые ответы, но не может выполнять инструменты через Google AI Mode;
-- 3.8 Flash и 4 Argon: выбор передаётся, но оба тестовых аккаунта упираются в дневной лимит Google на эти модели;
-- выбор модели в нативном интерфейсе Codex Desktop: **NOT TESTED**. Приложение Codex Desktop недоступно для автоматизированной проверки интерфейса.
+В основе: FastAPI, SQLite, React и Chrome CDP. Данные аккаунтов и история шифруются локальным мастер-ключом. Подробности: [SECURITY.md](SECURITY.md).
 
-Модель `zv67-mock` не выдаётся за Google AI Mode. Модель `google-ai-mode` работает через неофициальный протокол Google и может перестать работать при изменении защиты.
+## Что проверено
 
-## Архитектура
+Auto отвечает через реальные Google-аккаунты; диалоги с контекстом и запросы из Codex CLI проверены. Для Flash и Argon реализован выбор через параметр Google `arv`, но на двух тестовых аккаунтах Google вернул дневной лимит. Успешная генерация этими двумя моделями пока не подтверждена.
 
-```text
-Codex Desktop / CLI
-        |
-        v
-     OpenCodeX
-        |
-        v
-   ZV67 Gateway
-   |          |
- API        Dashboard
-   |
- Session Manager
-   |
- Account Router
-   |
- UpstreamProvider
-   |
-   google / mock
-```
+**Tool calling не поддерживается.** Шлюз принимает определения инструментов от Codex и игнорирует их. Google-модели возвращают текст; выполнение команд и правка файлов инструментами Codex через эти модели не реализованы. Наличие модели в каталоге не доказывает её доступность для конкретного аккаунта.
 
-CLIProxyAPI в цепочку не входит и не изменялся.
+## Быстрая установка на macOS
 
-Подробности: [ARCHITECTURE.md](ARCHITECTURE.md), [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md), [docs/FEASIBILITY.md](docs/FEASIBILITY.md).
+Проверено на Apple Silicon. Нужны Git, `uv`, Node.js 20.19+ или 22.12+ и Google Chrome для реальных запросов. Python 3.12 установщик создаст через `uv`. Для Node.js рекомендуется версия 24.
 
-## Установка
-
-Требования: macOS на Apple Silicon, Python 3.12+, Node.js 20+.
+Если Homebrew уже установлен:
 
 ```bash
-cd /Users/orfeev/Desktop/Projects/ZV67
+brew install git uv node@24
+brew install --cask google-chrome
+export PATH="$(brew --prefix node@24)/bin:$PATH"
+```
+
+Клонирование и запуск:
+
+```bash
+mkdir -p "$HOME/Projects"
+cd "$HOME/Projects"
+git clone https://github.com/zverror/zv67-google-ai-mode-codex-bridge.git
+cd zv67-google-ai-mode-codex-bridge
 ./scripts/install.sh
-```
-
-Установщик создаёт виртуальное окружение backend, собирает frontend, инициализирует базу в `~/Library/Application Support/ZV67`, устанавливает LaunchAgent и запускает сервис. LaunchAgent использует мастер-ключ в файле с правами `0600`, чтобы старт не зависел от диалогов Keychain.
-
-Проверка:
-
-```bash
 ./scripts/zv67 doctor
-curl -s http://127.0.0.1:18080/health
 ```
 
-Панель: `http://127.0.0.1:18080/admin/`. При первом открытии задаётся пароль администратора.
+Репозиторий сейчас приватный. Для клонирования владелец должен предоставить вашему GitHub-аккаунту доступ; при необходимости используйте `gh auth login` и `gh repo clone zverror/zv67-google-ai-mode-codex-bridge`. Для открытого распространения отдельно требуются изменение видимости и выбор лицензии.
 
-## Запуск вручную
+Установщик собирает панель, устанавливает backend и LaunchAgent `com.zv67.gateway`, запускает сервис на `127.0.0.1:18080`. База и ключ хранятся в `~/Library/Application Support/ZV67`. При первом запуске применяются миграции базы. Держите клон в постоянной папке: LaunchAgent ссылается на неё.
+
+Откройте `http://127.0.0.1:18080/admin/` и задайте пароль администратора. Другой порт, обновление и резервные копии описаны в [docs/INSTALL.md](docs/INSTALL.md).
+
+## Проверка без Google
 
 ```bash
-cd backend
-uv venv .venv
-uv pip install --python .venv/bin/python -e '.[dev]'
-.venv/bin/python -m uvicorn zv67.main:app --host 127.0.0.1 --port 18080
+curl -fsS http://127.0.0.1:18080/health
+curl -fsS http://127.0.0.1:18080/v1/models
+curl -fsS http://127.0.0.1:18080/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"zv67-mock","messages":[{"role":"user","content":"Проверка связи"}]}'
 ```
 
-Для разработки панели:
+Mock возвращает детерминированный тестовый ответ и не обращается к Google. С ним можно проверить установку до подключения аккаунта.
+
+## Подключение Google-аккаунта
+
+1. В панели откройте «Аккаунты» и создайте профиль. Название произвольное; подписку укажите вручную. Для начала оставьте вес `100` и параллельность `1`.
+2. Нажмите `Credentials`. Вставьте полный экспорт cookies для Google: массив JSON из Cookie-Editor, текст Netscape или строку cookie-заголовка. Нажмите «Сохранить».
+3. Выполните реальный запрос к `google-ai-mode` командой из раздела API ниже. Доступ определяется ответом Google; статус профиля сам по себе не гарантирует наличие квоты.
+
+Cookies вводятся только в локальной панели. Пароль Google не нужен. Не сохраняйте cookies в клоне проекта и не прикладывайте их к issue.
+
+## Модели
+
+| ID для API ZV67 | Название | Состояние проверки |
+|---|---|---|
+| `zv67-mock` | Локальный mock | Тестовый ответ без Google |
+| `google-ai-mode` | Google AI Mode / Auto | Реальные ответы получены |
+| `google-ai-mode-3.8-flash` | Google AI Mode 3.8 Flash | Выбор передаётся; тестовые аккаунты вернули 429 |
+| `google-ai-mode-4-argon` | Google AI Mode 4 Argon | Выбор передаётся; тестовые аккаунты вернули 429 |
+
+В Codex через OpenCodeX к ID добавляется префикс провайдера: например, `zv67/google-ai-mode-4-argon`.
+
+## Codex через OpenCodeX
+
+Команды ниже сверены с OpenCodeX **2.92.0**. На новом Mac сначала установите Codex CLI и OpenCodeX:
 
 ```bash
-cd frontend
-npm install
-npm run dev
+npm install -g @openai/codex @bitkyc08/opencodex@2.92.0
 ```
 
-Vite проксирует `/admin/api` на порт 18080.
-
-## Настройка Google-аккаунтов
-
-Откройте панель, раздел «Аккаунты», создайте профиль и нажмите «Credentials». Принимается JSON из Cookie-Editor, файл Netscape и строка `name=value; name2=value2`. Значение шифруется мастер-ключом; в журналы и Git оно не попадает.
-
-Пример структуры:
-
-```json
-[{"name": "__Secure-1PSID", "value": "..."}]
-```
-
-Не вставляйте cookies в чат, issue, логи или файлы репозитория. Пароль Google не запрашивается.
-
-После импорта cookies аккаунт готов к реальным запросам. Для каждого аккаунта создаётся отдельный временный профиль Chrome; браузер работает в headless-режиме и не открывает окно. Профиль удаляется при закрытии сессии.
-
-Codex передаёт определения инструментов в каждом запросе. ZV67 принимает их и игнорирует, поэтому выбор `zv67-mock` или Google-модели не приводит к ошибке 400. Сами инструменты не исполняются.
-
-## Подключение OpenCodeX
-
-Провайдер уже добавлен в `~/.opencodex/config.json`:
-
-```text
-provider: zv67
-adapter:  openai-chat
-baseUrl:  http://127.0.0.1:18080/v1
-models:   zv67-mock, google-ai-mode, google-ai-mode-3.8-flash, google-ai-mode-4-argon
-```
-
-Проверка:
+Добавьте провайдера и все четыре модели:
 
 ```bash
-ocx provider test zv67 --model google-ai-mode --yes
+ocx provider add zv67 \
+  --adapter openai-chat \
+  --base-url http://127.0.0.1:18080/v1 \
+  --auth-mode local \
+  --default-model google-ai-mode \
+  --model google-ai-mode --text-only \
+  --allow-private-network
+
+ocx models add zv67 zv67-mock --display-name 'ZV67 Mock' --modalities text
+ocx models add zv67 google-ai-mode --display-name 'Google AI Mode' --modalities text
+ocx models add zv67 google-ai-mode-3.8-flash --display-name 'Google AI Mode 3.8 Flash' --modalities text
+ocx models add zv67 google-ai-mode-4-argon --display-name 'Google AI Mode 4 Argon' --modalities text
+
+ocx ensure
+ocx sync
 ocx models list
+ocx provider test zv67 --model zv67-mock --yes
 ```
 
-Перед изменением конфигурации создан backup: `~/.opencodex/config.json.backup-zv67-20261024`.
+Если провайдер `zv67` уже есть, сначала проверьте его командой `ocx provider show zv67`. Повторное добавление с `--force` заменяет его настройки; не используйте этот флаг без проверки. Настройка OpenCodeX меняет пользовательскую интеграцию Codex; сохраните свои конфиги по [инструкции](docs/INSTALL.md#codex-и-opencodex).
 
-Отключение провайдера:
+Текстовый запрос из CLI:
 
 ```bash
-ocx provider remove zv67
+codex exec -m zv67/google-ai-mode 'Назови столицу Франции одним словом'
 ```
 
-Команда меняет общий конфигурационный файл; сначала сделайте backup.
-
-После изменения списка моделей полностью закройте и снова откройте Codex Desktop, чтобы он перечитал `~/.codex/opencodex-catalog.json`. В селекторе выберите провайдера `zv67`; должны быть видны четыре модели.
+Для Codex Desktop полностью завершите приложение через `Cmd+Q` после `ocx sync`, затем откройте снова. Ищите названия из таблицы моделей. Генерация через CLI проверялась; фактический выбор в интерфейсе Desktop автоматизированно не проверялся.
 
 ## API
 
-```bash
-curl -s http://127.0.0.1:18080/health
-curl -s http://127.0.0.1:18080/v1/models
+Базовый адрес: `http://127.0.0.1:18080/v1`.
 
-curl -s -X POST http://127.0.0.1:18080/v1/chat/completions \
+```bash
+curl -fsS http://127.0.0.1:18080/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -d '{"model":"google-ai-mode","messages":[{"role":"user","content":"Столица Франции?"}]}'
 ```
 
-При заданном `ZV67_API_KEY` добавьте заголовок `Authorization: Bearer <key>`.
+Для SSE добавьте `"stream": true` и используйте `curl -N`. Также доступны `POST /v1/responses` и `GET /v1/models`. Если настроен `ZV67_API_KEY`, добавляйте заголовок `Authorization: Bearer <ключ>`.
 
-Streaming включается полем `"stream": true`. Responses API: `POST /v1/responses`.
-
-## Панель
-
-![Обзор](docs/screenshots/overview.png)
-
-Скриншоты сняты на тестовом профиле с mock-провайдером. Аккаунты Google — демонстрационные записи; реальные cookies в репозиторий не попадали.
-
-Разделы: обзор, аккаунты, модели, статистика, журнал, настройки, система. Данные приходят из Management API; фиктивных метрик нет.
-
-## Безопасность
-
-- сервер по умолчанию слушает только `127.0.0.1`;
-- пароль администратора хранится как scrypt-хеш;
-- сессия панели — HttpOnly cookie, SameSite=Strict;
-- изменяющие запросы защищены CSRF-токеном;
-- credentials и история шифруются Fernet-ключом; LaunchAgent использует файл `0600`;
-- журналы не содержат промптов и cookies;
-- удаление аккаунта удаляет его credentials и сессии.
-
-Подробнее: [SECURITY.md](SECURITY.md).
-
-## Обновление и управление
+## Управление
 
 ```bash
-./scripts/zv67 start
-./scripts/zv67 stop
-./scripts/zv67 restart
 ./scripts/zv67 status
+./scripts/zv67 restart
+./scripts/zv67 stop
+./scripts/zv67 start
 ./scripts/zv67 logs
-./scripts/zv67 doctor
 ```
 
-## Известные ограничения
+## Ограничения
 
-1. Google AI Mode использует неофициальный протокол; Google может изменить защиту или заблокировать сессию.
-2. Tool calling не реализован; агентские действия Codex через Google AI Mode не подтверждены.
-3. Codex Desktop может показывать модель из каталога OpenCodeX, но фактический выбор в UI не проверен; CLI работает с `-m zv67/google-ai-mode`.
-4. Точная статистика токенов Google недоступна и не выдумывается.
-5. Приложение рассчитано на один локальный Mac без контейнеров и внешних сервисов.
+Google AI Mode подключён через неофициальный веб-протокол. Доступ зависит от аккаунта, региона, cookies, квоты и изменений Google. Шлюз не гарантирует доступность Flash и Argon и не снимает лимиты. Точная статистика токенов Google недоступна. Входящие изображения и файлы не поддерживаются. Установка рассчитана на один локальный Mac; Linux и Windows этим установщиком не поддерживаются.
 
-## Юридическое предупреждение
+## Документация и презентация
 
-Google AI Mode не предоставляет официальный API для такого использования. Проект работает через неофициальный протокол и нарушает условия Google; ответственность за использование лежит на владельце аккаунтов.
+- [Полная установка, обновление, резервная копия и диагностика](docs/INSTALL.md).
+- [Архитектура](ARCHITECTURE.md), [границы реализации](docs/FEASIBILITY.md), [результаты проверок](docs/VERIFICATION.md).
+- [Вертикальная PDF-презентация](output/pdf/zv67-project.pdf), [контактный лист](output/pdf/zv67-contact-sheet.jpg), [редактируемые исходники](docs/presentation/).
 
 ## Лицензия
 
-Собственный код проекта. Сторонний код XD06/google-ai-mode не копировался.
-
+Лицензия для распространения собственного кода пока не выбрана. Наличие кода на GitHub само по себе не даёт разрешения на его свободное использование и распространение. Лицензии двух шрифтов презентации находятся рядом с файлами шрифтов и относятся только к ним.

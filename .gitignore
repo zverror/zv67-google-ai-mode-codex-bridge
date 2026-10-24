@@ -10,9 +10,25 @@ dist/
 .DS_Store
 .env
 .env.local
+.env.*
+!.env.example
 data/
 logs/
 node_modules/
 frontend/dist/
 *.tsbuildinfo
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+*.key
+cookies*.json
+cookies*.txt
+*.cookies
+*.har
+browser-profiles/
+tmp/
+.codex-presentation-build/
+.codex-finalizer/
 

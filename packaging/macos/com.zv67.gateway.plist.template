@@ -25,6 +25,8 @@
     <string>file</string>
     <key>ZV67_GOOGLE_AI_MODE_ENABLED</key>
     <string>true</string>
+    <key>ZV67_GOOGLE_BROWSER_HEADLESS</key>
+    <string>true</string>
   </dict>
   <key>RunAtLoad</key>
   <true/>

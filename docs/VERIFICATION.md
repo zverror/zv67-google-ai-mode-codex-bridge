@@ -2,7 +2,7 @@
 
 **Дата:** 24 октября 2026.  
 **Версия:** 0.1.0.  
-**Провайдер:** mock.
+**Провайдеры:** mock и Google AI Mode.
 
 ## Автоматические тесты
 
@@ -41,7 +41,7 @@ cd backend
 | Панель | `http://127.0.0.1:18080/admin/` | PASS: все разделы отрисованы |
 | OpenCodeX | `ocx provider test zv67 --model zv67-mock --yes` | PASS: `ok=true`, wire model совпал |
 | Каталог Codex | `~/.codex/opencodex-catalog.json` | PASS: `zv67/zv67-mock` присутствует |
-| Codex CLI | `codex exec -m zv67-mock` | FAIL: tool calling не поддерживается |
+| Codex CLI | `codex exec -m zv67/zv67-mock` | PASS: текстовый ответ; определения tools принимаются, вызовы инструментов не реализованы |
 | Codex Desktop UI | визуальный выбор модели | NOT TESTED: приложение закрыто для CUA |
 
 ## Установка и автозапуск
@@ -54,19 +54,6 @@ cd backend
 | Хранилище ключа | LaunchAgent c `ZV67_MASTER_KEY_STORE=file` | PASS: файл 0600, без диалогов Keychain |
 
 Первый вариант автозапуска с Keychain завис на старте: LaunchAgent не может пройти интерактивную проверку доступа. Рабочая конфигурация использует файловый мастер-ключ с правами 0600.
-
-## Проверка моделей OpenCodeX
-
-| Провайдер | Модель | Результат |
-|---|---|---|
-| zv67 | zv67-mock | PASS |
-| raya-auto | route | PASS, upstream `gemini-3.8-flash-high` |
-| oMLX | Cyber-Tiel | FAIL: сеть, локальный сервер недоступен |
-| opencode | kimi-k2.7-code | FAIL: HTTP 400 |
-| ohh | 7 моделей | NOT TESTED: провайдер отключён |
-| openai | 3 модели | NOT TESTED: forward-auth |
-
-Эти результаты относятся к текущему состоянию установленного OpenCodeX и не являются обещанием доступности моделей.
 
 ## Google AI Mode
 
@@ -112,6 +99,13 @@ zv67/google-ai-mode-4-argon
 ## Что не доказано
 
 - выбор модели в Codex Desktop;
-- агентский цикл Codex через Google AI Mode;
-- tool calling.
+- успешная генерация Flash и Argon на контрольных аккаунтах.
+
+Агентский цикл с исполнением инструментов в текущей версии не реализован.
+
+## Подготовка к распространению
+
+Повторная проверка 24 октября 2026 года: backend — **68 passed**; production-сборка frontend завершена; `bash -n scripts/install.sh scripts/zv67` и `scripts/zv67 doctor` успешны. Сборщик предупреждает о JS chunk больше 500 kB; тесты — об устаревшей интеграции Starlette с httpx. Эти предупреждения не блокируют запуск.
+
+Установка описана в `docs/INSTALL.md`. Диагностика проверяет загрузку LaunchAgent, путь Python, порт, каталог данных и принадлежность ответа `/health` ZV67. Установщик проверяет владельца порта и сохраняет ключ клиентского API при обновлении. Проверка на полностью новом Mac пока не проводилась.
 

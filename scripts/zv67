@@ -36,14 +36,43 @@ case "${1:-status}" in
     [[ -x "$root/backend/.venv/bin/python" ]] && echo "venv: ok" || { echo "venv: missing"; failures=1; }
     [[ -f "$root/frontend/dist/index.html" ]] && echo "frontend: built" || { echo "frontend: missing"; failures=1; }
     [[ -f "$plist" ]] && echo "launchd plist: ok" || { echo "launchd plist: missing"; failures=1; }
+    if launchctl print "gui/$uid_value/$label" >/dev/null 2>&1; then
+      echo "launchd: loaded"
+    else
+      echo "launchd: not loaded"
+      failures=1
+    fi
+    if [[ -x "$root/backend/.venv/bin/python" && -f "$plist" ]] &&
+      "$root/backend/.venv/bin/python" - "$plist" "$root" "$data_dir" "$port" <<'PY'
+import pathlib
+import plistlib
+import sys
+
+plist, root, data_dir, port = sys.argv[1:]
+configuration = plistlib.loads(pathlib.Path(plist).read_bytes())
+arguments = configuration["ProgramArguments"]
+valid = (
+    arguments[0] == str(pathlib.Path(root, "backend/.venv/bin/python"))
+    and arguments[arguments.index("--port") + 1] == port
+    and configuration["EnvironmentVariables"]["ZV67_DATA_DIR"] == data_dir
+)
+sys.exit(0 if valid else 1)
+PY
+    then
+      echo "launchd configuration: ok"
+    else
+      echo "launchd configuration: mismatch or unavailable"
+      failures=1
+    fi
     [[ -d "$data_dir" ]] && echo "data dir: ok" || { echo "data dir: missing"; failures=1; }
-    if curl -fsS "http://127.0.0.1:$port/health" >/dev/null 2>&1; then
+    if curl --max-time 3 -fsS "http://127.0.0.1:$port/health" |
+      "$root/backend/.venv/bin/python" -c 'import json, sys; h=json.load(sys.stdin); sys.exit(0 if h.get("service") == "zv67" and h.get("status") == "ok" else 1)' >/dev/null 2>&1; then
       echo "health: ok"
     else
       echo "health: failed"
       failures=1
     fi
-    if curl -fsS "http://127.0.0.1:$port/admin/" >/dev/null 2>&1; then
+    if curl --max-time 3 -fsS "http://127.0.0.1:$port/admin/" >/dev/null 2>&1; then
       echo "dashboard: ok"
     else
       echo "dashboard: failed"
